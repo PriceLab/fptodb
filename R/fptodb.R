@@ -13,27 +13,26 @@ motif.hits.coi <- function()
              "method", "provenance", "score1", "score2", "score3", "score4", "score5", "score6"))
 }
 #------------------------------------------------------------------------------------------------------------------------
-createFootprintTablesForRegion <- function(fpDirectory, resultsDirectory, chromosome, start.loc, end.loc)
+createFootprintTablesForRegion <- function(fpDirectory, resultsDirectory, chromosome, start.loc, end.loc,
+                                           shoulder=10)
 {
        #------------------------------------------------------------
        # first read the footprint calls
        #------------------------------------------------------------
 
-    printf("--- createing footpring tables for specified region")
+    message(sprintf("--- creating footpring tables for specified region"))
 
     searchString <- sprintf('find %s -name "*%s_fp.bed"', fpDirectory, chromosome)
     files <- system(searchString, intern=TRUE)
-    printf("file count: %d", length(files))
+    message(sprintf("file count: %d", length(files)))
+    stopifnot(length(files) > 0)
     fps <- list()
     for(f in files){
        f.path <- f # file.path(dir, f)
-       printf("--- %s", f.path)
+       message(sprintf("--- %s", f.path))
        tbl <- read.table(f.path, sep="\t", as.is=TRUE, nrow=-1)
-       print(nrow(tbl))
        colnames(tbl) <- c("chrom", "start", "end", "name", "score", "strand", "ignore")
-       print(head(tbl))
        tbl <- subset(tbl, chrom==chromosome & start >= start.loc & end <= end.loc)
-       print(nrow(tbl))
        fps[[f]] <- tbl
        } # for f
 
@@ -41,7 +40,6 @@ createFootprintTablesForRegion <- function(fpDirectory, resultsDirectory, chromo
        # combine the footprint lists into a single data.frame
        #------------------------------------------------------------
 
-    # browser()
     tbl.fps <- do.call(rbind, fps)[, c("chrom", "start", "end", "score")]
     rownames(tbl.fps) <- NULL
     dim(tbl.fps)
@@ -52,21 +50,24 @@ createFootprintTablesForRegion <- function(fpDirectory, resultsDirectory, chromo
        # expand the footprints by <shoulder> in both directions
        #------------------------------------------------------------
 
-    shoulder <- 10
     tbl.fpsExpanded <- tbl.fps
     tbl.fpsExpanded$start <- tbl.fpsExpanded$start - shoulder
     tbl.fpsExpanded$end <- tbl.fpsExpanded$end + shoulder
 
        #------------------------------------------------------------
-       # collapse overlapping footprints
+       # remove any regions which are an exact duplicate of another
+       # sort order includes 
        #------------------------------------------------------------
 
-    tbl.fpsExpanded <- as.data.frame(union(GRanges(tbl.fpsExpanded), GRanges(tbl.fpsExpanded)))
-    colnames(tbl.fpsExpanded) <- c("chrom", "start", "end", "width", "strand")
-    dim(tbl.fpsExpanded)
+    tbl.fpsExpanded$signature <- with(tbl.fpsExpanded, sprintf("%s:%d-%d", chrom, start, end))
+    tbl.fpsExpanded <- tbl.fpsExpanded[with(tbl.fpsExpanded, order(signature, -score)),]
+    dups <- which(duplicated(tbl.fpsExpanded$signature))
+    if(length(dups) > 0)
+       tbl.fpsExpanded <- tbl.fpsExpanded[-dups,]
     filename <- sprintf("%s:%d-%d.footprints-combined.RData", chromosome, start.loc, end.loc)
-    printf("saving %d combined expanded footprints to %s", nrow(tbl.fpsExpanded), filename)
+    message(sprintf("saving %d combined, expanded footprints to %s", nrow(tbl.fpsExpanded), filename))
     full.filename <- file.path(resultsDirectory, filename)
+    tbl.fpsExpanded <- tbl.fpsExpanded[, c("chrom", "start", "end", "score")]
     save(tbl.fpsExpanded, file=full.filename)
     return(full.filename)
 

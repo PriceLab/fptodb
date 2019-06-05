@@ -1,11 +1,43 @@
 source("~/github/fptodb/R/fptodb.R")
 #------------------------------------------------------------------------------------------------------------------------
+runTests <- function()
+{
+    suppressMessages(test_createFootprintTablesForRegion())
+    #test_small()
+    
+} # runTests
+#------------------------------------------------------------------------------------------------------------------------
+# we read in footprints from files within or below a specified directory
+# by convention, these filenames end with "_fp.bed"
+# the regions are all expanded by *shoulder* amount at each end
+# the expanded regions, which come from different samples, are combined into one big data.frame
+# 
+test_createFootprintTablesForRegion <- function()
+{
+   printf("--- test_createFootprintTablesForRegion")
+    
+   fpDirectory <- "/local/trenaPlacentaProject/whole_genome"
+   resultsDirectory <- "/tmp"
+   betaGlobinLocus <- list(chrom="chr11", start=5223904, end=5304186)
+
+   filename <- with(betaGlobinLocus, createFootprintTablesForRegion(fpDirectory, resultsDirectory,
+                                                                    chrom, start, end, shoulder=10))
+   tbl.out <- get(load(filename))
+   checkEquals(colnames(tbl.out), c("chrom", "start", "end", "score"))
+   checkEquals(tbl.out$start,
+               c(5258562, 5258630, 5258638, 5280708, 5280729, 5280760, 5280761, 5280781,
+                 5280806, 5280835, 5294314, 5294684, 5294759, 5294760))
+   checkEquals(tbl.out$score, c(18, 15, 14, 39, 87, 53, 53, 46, 46, 36, 21, 29, 9, 30))
+
+} # test_createFootprintTablesForRegion
+#------------------------------------------------------------------------------------------------------------------------
 test_small <- function()
 {
    betaGlobinLocus <- list(chrom="chr11", start=5223904, end=5304186)
    with(betaGlobinLocus, printf("span: %d", 1 + end - start))
    fpDirectory <- "/local/trenaPlacentaProject/whole_genome"
-   f <- with(betaGlobinLocus, createFootprintTablesForRegion(fpDirectory, chrom, start, end))
+   resultsDirectory <- "/tmp"
+   f <- with(betaGlobinLocus, createFootprintTablesForRegion(fpDirectory, resultsDirectory, chrom, start, end))
    resultsDirectory <- tempdir()
    fasta.filename <- "chr11-small.fa"
    createFastaFileForFimo(f, fasta.filename)
@@ -13,10 +45,13 @@ test_small <- function()
    fimoResultsFile <- runFimo(fasta.filename, resultsDirectory, threshold)
    tbl.fimo <- read.table(fimoResultsFile, sep="\t", header=TRUE)
    x <- transformFimoResultsForDatabaseFill(fimoResultsFile)
-   lapply(x, dim)
+   #print(lapply(x, dim))
    tbl.regions <- x$regions
    tbl.motifs <- x$hits
 
+   browser()
+   xyz <- "view motifs in igvR?"
+   
    checkTrue(all(tbl.motifs$loc %in% tbl.regions$loc))
    checkTrue(all(tbl.motifs$score3 <= threshold))
    
