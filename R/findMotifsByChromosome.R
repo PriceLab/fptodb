@@ -98,18 +98,17 @@ createFootprintTablesForRegion <- function(chromosome, start.loc, end.loc)
     filename <- sprintf("%s:%d-%d.footprints-combined.RData", chromosome, start.loc, end.loc)
     printf("saving %d combined expanded footprints to %s", nrow(tbl.fpsExpanded), filename)
     save(tbl.fpsExpanded, file=filename)
-    write.table(tbl.fpsExpanded, sep="\t", quote=FALSE
+    #write.table(tbl.fpsExpanded, sep="\t", quote=FALSE
 
 } # createFootprintTablesForRegion
 #------------------------------------------------------------------------------------------------------------------------
-fimoPrep <- function(tbl.fpsExpanded, )
-{
-   sequences <- getSeq(BSgenome.Hsapiens.UCSC.hg38, tbl.fpsExpanded$chrom, tbl.fpsExpanded$start, tbl.fpsExpanded$end))
-   names(sequences) <- sprintf("%s:%d-%d", tbl.fpsExpanded$chrom, tbl.fpsExpanded$start, tbl.fpsExpanded$end)
-   writeXStringSet(sequences, "tmp2.fa")
-
-
-} # fimoPrep
+#fimoPrep <- function(tbl.fpsExpanded)
+#{
+#   sequences <- getSeq(BSgenome.Hsapiens.UCSC.hg38, tbl.fpsExpanded$chrom, tbl.fpsExpanded$start, tbl.fpsExpanded$end))
+#   names(sequences) <- sprintf("%s:%d-%d", tbl.fpsExpanded$chrom, tbl.fpsExpanded$start, tbl.fpsExpanded$end)
+#   writeXStringSet(sequences, "tmp2.fa")
+#
+# } # fimoPrep
 #------------------------------------------------------------------------------------------------------------------------
 # get fimo motif hits to these regions at the specified threshold
 callMotifs <- function()
