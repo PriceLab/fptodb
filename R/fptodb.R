@@ -22,7 +22,8 @@ createFootprintTablesForRegion <- function(fpDirectory, resultsDirectory, chromo
 
     message(sprintf("--- creating footpring tables for specified region"))
 
-    searchString <- sprintf('find %s -name "*%s_fp.bed"', fpDirectory, chromosome)
+    searchString <- sprintf('find %s -name "*%s*.bed"', fpDirectory, chromosome)
+    print(searchString)
     files <- system(searchString, intern=TRUE)
     message(sprintf("file count: %d", length(files)))
     stopifnot(length(files) > 0)
@@ -65,8 +66,8 @@ createFootprintTablesForRegion <- function(fpDirectory, resultsDirectory, chromo
     if(length(dups) > 0)
        tbl.fpsExpanded <- tbl.fpsExpanded[-dups,]
     filename <- sprintf("%s:%d-%d.footprints-combined.RData", chromosome, start.loc, end.loc)
-    message(sprintf("saving %d combined, expanded footprints to %s", nrow(tbl.fpsExpanded), filename))
     full.filename <- file.path(resultsDirectory, filename)
+    message(sprintf("saving %d combined, expanded footprints to %s", nrow(tbl.fpsExpanded), full.filename))
     tbl.fpsExpanded <- tbl.fpsExpanded[, c("chrom", "start", "end", "score")]
     save(tbl.fpsExpanded, file=full.filename)
     return(full.filename)
@@ -78,23 +79,50 @@ createFastaFileForFimo <- function(serializedFileName, fastaFileName)
    printf("--- creating fasta file for FIMO")
    tbl.fps <- get(load(serializedFileName))
    sequences <- getSeq(BSgenome.Hsapiens.UCSC.hg38, tbl.fps$chrom, tbl.fps$start, tbl.fps$end)
-   names(sequences) <- sprintf("%s:%d-%d", tbl.fps$chrom, tbl.fps$start, tbl.fps$end)
+   if(is(sequences, "DNAString"))
+       sequences <- DNAStringSet(sequences)
+   names(sequences) <- with(tbl.fps, sprintf("%s:%d-%d", chrom, start, end))
    writeXStringSet(sequences, fastaFileName)
 
 } # createFastaFileForFimo
 #------------------------------------------------------------------------------------------------------------------------
-runFimo <- function(fastaFileName, resultsDirectory, threshold)
+runFimo.tsvOnly <- function(fastaFileName, resultsDirectory, threshold)
 {
    printf("--- running FIMO")
    FIMO <- "/users/pshannon/meme/bin/fimo"
    MOTIFS <- "~/github/fimoService/pfms/human-jaspar2018-hocomoco-swissregulon.meme"
-   cmd <- sprintf("%s --oc %s --thresh %f --verbosity 1 %s %s",
-                  FIMO, resultsDirectory, threshold, MOTIFS, fastaFileName)
-   system(cmd)
-   return(file.path(resultsDirectory, "fimo.tsv"))    
-   # /users/pshannon/meme/bin/fimo --oc . --thresh 1e-4 ~/github/fimoService/pfms/human-jaspar2018-hocomoco-swissregulon.meme chr11-small.fa 
 
-} # runFimo
+   base.name <- basename(fastaFileName)
+   tsv.name <- sub(".fa", ".tsv", base.name, fixed=TRUE)
+   tsv.path <- file.path(resultsDirectory, tsv.name)
+
+   cmd <- sprintf("%s --thresh %f --verbosity 1 --text %s %s > %s",
+                  FIMO, threshold, MOTIFS, fastaFileName, tsv.path)
+   system(cmd)
+   return(tsv.path)
+
+} # runFimo.tsvOnly
+#------------------------------------------------------------------------------------------------------------------------
+test_runFimo.tsvOnly <- function()
+{
+   printf("--- test_runFimo.tsvOnly")
+   chrom <-"chr3"
+   start <- 128493466
+   end   <- 128493855
+          
+   sequences <- getSeq(BSgenome.Hsapiens.UCSC.hg38, chrom, start, end)
+   if(is(sequences, "DNAString"))
+       sequences <- DNAStringSet(sequences)
+   names(sequences) <- sprintf("%s:%d-%d", chrom, start, end)
+   writeXStringSet(sequences, "tinyTest.fa")
+
+   runFimo.tsvOnly("./tinyTest.fa", ".", 1e-5)
+   tbl <- read.table("./tinyTest.tsv", sep="\t", as.is=TRUE, nrow=-1, header=TRUE)
+   checkEquals(ncol(tbl), 10)
+   checkTrue(nrow(tbl) > 50)
+   checkTrue(all(tbl$p.value <= 1e-5))
+
+} # test_runFimo.tsvOnly
 #------------------------------------------------------------------------------------------------------------------------
 parseLocStrings <- function(locStrings)
 {
