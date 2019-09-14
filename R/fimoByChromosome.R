@@ -9,7 +9,7 @@ runTests <- function()
 {
   test_createFastaFileForFimo()
   test_runFimo()
-  
+
 } # runTests
 #------------------------------------------------------------------------------------------------------------------------
 createFastaFileForFimo <- function(tbl.regions, fastaFileName)
@@ -27,26 +27,34 @@ createFastaFileForFimo <- function(tbl.regions, fastaFileName)
 runFimo <- function(fastaFileName, resultsDirectory, threshold=5e-4)
 {
    printf("--- running FIMO")
-   FIMO <- "/users/pshannon/meme/bin/fimo"
+   FIMO <- file.path(Sys.getenv("HOME"), "meme", "bin", "fimo")  # true on both hagfish & khaleesi
    MOTIFS <- "~/github/fimoService/pfms/human-jaspar2018-hocomoco-swissregulon.meme"
-   cmd <- sprintf("%s --oc %s --thresh -%f --text --verbosity 1 %s %s",
-                  FIMO, resultsDirectory, threshold, MOTIFS, fastaFileName)
+   #cmd <- sprintf("%s --oc %s --thresh -%f --text --verbosity 1 %s %s",
+   #               FIMO, resultsDirectory, threshold, MOTIFS, fastaFileName)
+
+   base.name <- basename(fastaFileName)
+   tsv.name <- sub(".fa", ".tsv", base.name, fixed=TRUE)
+   tsv.path <- file.path(resultsDirectory, tsv.name)
+
+   cmd <- sprintf("%s --thresh %f --verbosity 1 --text %s %s > %s",
+                  FIMO, threshold, MOTIFS, fastaFileName, tsv.path)
+
    print(cmd)
    system(cmd)
-   return(file.path(resultsDirectory, "fimo.tsv"))    
-   # /users/pshannon/meme/bin/fimo --oc . --thresh 1e-4 ~/github/fimoService/pfms/human-jaspar2018-hocomoco-swissregulon.meme chr11-small.fa 
+   return(tsv.path)
+   # /users/pshannon/meme/bin/fimo --oc . --thresh 1e-4 ~/github/fimoService/pfms/human-jaspar2018-hocomoco-swissregulon.meme chr11-small.fa
 
 } # runFimo
 #------------------------------------------------------------------------------------------------------------------------
 test_createFastaFileForFimo <- function()
 {
    message(noquote(sprintf("--- test_createFastaFileForFimo")))
-    
+
      # a < 1kb region in the promoter of GATA2, where TBX15 hits may be found
    tbl.regions <- data.frame(chrom="chr3", start=128497569, end=128498329, stringsAsFactors=FALSE)
    createFastaFileForFimo(tbl.regions, "smallTest.fa")
    checkTrue(file.exists("smallTest.fa"))
-    
+
 } # test_createFastaFileForFimo
 #------------------------------------------------------------------------------------------------------------------------
 test_runFimo <- function()
@@ -55,9 +63,9 @@ test_runFimo <- function()
 
    fastaFileName <- "smallTest.fa"  # created in test_createFastaFileforFimo
    checkTrue(file.exists(fastaFileName))
-   resultsDirectory <- "./fimoResults"
-   runFimo(fastaFileName, resultsDirectory, threshold=1e-2)   
-   checkTrue(file.exists(file.path(resultsDirectory, "fimo.tsv")))
+   resultsDirectory <- tempdir()
+   resultsFile <- runFimo(fastaFileName, resultsDirectory, threshold=1e-2)
+   checkTrue(file.exists(resultsFile))
 
 } # test_runFimo
 #------------------------------------------------------------------------------------------------------------------------
@@ -82,7 +90,7 @@ runFimoGATA2.big <- function()
    system.time(runFimo(fastaFilename, resultsDirectory, threshold=1e-3))
    fimo.results.file <- file.path(resultsDirectory, "fimo.tsv")
    checkTrue(file.exists(fimo.results.file))
-    
+
    tbl <- read.table(fimo.results.file, sep="\t", as.is=TRUE, nrow=-1, header=TRUE)  # two chopped names
    tbl.fixed <- fixMotifNamesTruncatedAt100characters(tbl)
    fimo.results.file.fixed <- file.path(resultsDirectory, "fimo-fixed.tsv")
@@ -117,7 +125,7 @@ test_fixMotifNamesTruncatedAt100characters <- function()
    char.100.lines.after <- which(nchar(tbl.fixed$motif_id) == 100)
    checkTrue(length(char.100.lines.after) == 0)
    checkTrue(all(nchar(tbl.fixed$motif_id[char.100.lines]) > 100))
-    
+
 } # test_fixMotifNamesTruncatedAt100characters
 #------------------------------------------------------------------------------------------------------------------------
 # if(!interactive()) test_runFimoBig()

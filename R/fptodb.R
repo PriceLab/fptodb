@@ -57,7 +57,7 @@ createFootprintTablesForRegion <- function(fpDirectory, resultsDirectory, chromo
 
        #------------------------------------------------------------
        # remove any regions which are an exact duplicate of another
-       # sort order includes 
+       # sort order includes
        #------------------------------------------------------------
 
     tbl.fpsExpanded$signature <- with(tbl.fpsExpanded, sprintf("%s:%d-%d", chrom, start, end))
@@ -89,7 +89,7 @@ createFastaFileForFimo <- function(serializedFileName, fastaFileName)
 runFimo.tsvOnly <- function(fastaFileName, resultsDirectory, threshold)
 {
    printf("--- running FIMO")
-   FIMO <- "/users/pshannon/meme/bin/fimo"
+   FIMO <- file.path(Sys.getenv("HOME"), "meme", "bin", "fimo")
    MOTIFS <- "~/github/fimoService/pfms/human-jaspar2018-hocomoco-swissregulon.meme"
 
    base.name <- basename(fastaFileName)
@@ -98,6 +98,7 @@ runFimo.tsvOnly <- function(fastaFileName, resultsDirectory, threshold)
 
    cmd <- sprintf("%s --thresh %f --verbosity 1 --text %s %s > %s",
                   FIMO, threshold, MOTIFS, fastaFileName, tsv.path)
+   print(cmd)
    system(cmd)
    return(tsv.path)
 
@@ -109,7 +110,7 @@ test_runFimo.tsvOnly <- function()
    chrom <-"chr3"
    start <- 128493466
    end   <- 128493855
-          
+
    sequences <- getSeq(BSgenome.Hsapiens.UCSC.hg38, chrom, start, end)
    if(is(sequences, "DNAString"))
        sequences <- DNAStringSet(sequences)
@@ -159,7 +160,7 @@ transformFimoResultsForDatabaseFill <- function(fimoResultsFile)
    colnames(tbl.locs)[grep("start", colnames(tbl.locs))] <- "fp_start"
    colnames(tbl.locs)[grep("end", colnames(tbl.locs))] <- "fp_end"
 
-   
+
    printf("    --- cbind")
    tbl.motifs <- cbind(tbl.locs, tbl.motifs)
 
